@@ -1,0 +1,256 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters":{
+    "instances": {
+      "type": "int",
+      "metadata": {
+        "description": "Number of slaves"
+      },
+      "defaultValue": 3
+    },
+    "prefix": {
+      "type": "string",
+      "metadata": {
+        "description": "OPTIONAL: Please use only lower case and digits. Max 11 chars. If empty some random will be used."
+      },
+      "defaultValue": ""
+    }
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+    "prefix": "[if(empty(parameters('prefix')), uniqueString(resourceGroup().id), parameters('prefix'))]",
+    "image": "microsoft/azure-cli",
+    "storageAccountName": "[variables('prefix')]",
+    "containerProvisionerName": "[concat(variables('storageAccountName'), '-provisioner')]",
+    "containerName": "createshare",
+    "containerDns": "[concat(variables('prefix'),'-master')]",
+    "containerMasterGroup": "[concat(variables('prefix'),'-master')]",
+    "containerMasterName": "master",
+    "containerMasterImage": "locustio/locust",
+    "containerSlaveGroup": "[concat(variables('prefix'),'-slave')]",
+    "containerSlaveName": "slave",
+    "containerSlaveImage": "locustio/locust",
+    "containerMasterAddress": "[concat(variables('containerDns'), '.', resourceGroup().location, '.azurecontainer.io')]",
+    "containerMasterUrl": "[concat('http://', variables('containerMasterAddress'), ':8089')]",
+    "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[variables('storageAccountName')]",
+      "apiVersion": "2017-10-01",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "Storage",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2019-04-01",
+      "name": "[concat(variables('storageAccountName'), '/default/scripts')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "shareQuota": "1"
+      }
+    },
+    {
+      "name": "[variables('containerProvisionerName')]",
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2018-02-01-preview",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/fileServices/shares', variables('storageAccountName'), 'default', 'scripts')]"
+      ],
+      "properties": {
+        "containers": [
+          {
+            "name": "[variables('containerName')]",
+            "properties": {
+              "image": "[variables('image')]",
+              "command": [
+                "bash",
+                "-c",
+                "echo 'ZnJvbSBsb2N1c3QgaW1wb3J0IEh0dHBMb2N1c3QsIFRhc2tTZXQsIGJldHdlZW4KCmRlZiBpbmRleChsKToKICAgIGwuY2xpZW50LmdldCgiLyIpCgpjbGFzcyBVc2VyQmVoYXZpb3IoVGFza1NldCk6CiAgICB0YXNrcyA9IHtpbmRleDogMX0KCmNsYXNzIFdlYnNpdGVVc2VyKEh0dHBMb2N1c3QpOgogICAgdGFza19zZXQgPSBVc2VyQmVoYXZpb3IKICAgIHdhaXRfdGltZSA9IGJldHdlZW4oMC4wLCAxLjAp' | base64 -d > locustfile.py; az storage file upload -s scripts --source ./locustfile.py"
+              ],
+              "environmentVariables": [
+                {
+                  "name": "AZURE_STORAGE_KEY",
+                  "value": "[listKeys(variables('storageAccountName'),'2017-10-01').keys[0].value]"
+                },
+                {
+                  "name": "AZURE_STORAGE_ACCOUNT",
+                  "value": "[variables('storageAccountName')]"
+                }
+              ],
+              "resources": {
+                "requests": {
+                  "cpu": 1,
+                  "memoryInGb": 1
+                }
+              }
+            }
+          }
+        ],
+        "restartPolicy": "OnFailure",
+        "osType": "Linux"
+      }
+    },
+    {
+      "name": "[variables('containerMasterGroup')]",
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2018-10-01",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.ContainerInstance/containerGroups/', variables('containerProvisionerName'))]"
+      ],
+      "properties": {
+        "containers": [
+          {
+            "name": "[variables('containerMasterName')]",
+            "properties": {
+              "image": "[variables('containerMasterImage')]",
+              "resources": {
+                "requests": {
+                  "cpu": 1,
+                  "memoryInGb": 2
+                }
+              },
+              "ports": [
+                {
+                  "port": 8089
+                },
+                {
+                  "port": 5557
+                }
+              ],
+              "environmentVariables": [
+                {
+                  "name": "LOCUST_MODE",
+                  "value": "master"
+                },
+                {
+                  "name": "LOCUSTFILE_PATH",
+                  "value": "/mnt/locust/locustfile.py"
+                },
+                {
+                  "name": "TARGET_URL",
+                  "value": "http://"
+                }
+              ],
+              "volumeMounts": [
+                {
+                  "name": "filesharevolume",
+                  "mountPath": "/mnt/locust"
+                }
+              ]
+            }
+          }
+        ],
+        "osType": "Linux",
+        "ipAddress": {
+          "type": "Public",
+          "ports": [
+            {
+              "protocol": "tcp",
+              "port": "8089"
+            },
+            {
+              "protocol": "tcp",
+              "port": "5557"
+            }
+          ],
+          "dnsNameLabel": "[variables('containerDns')]"
+        },
+        "volumes": [
+          {
+            "name": "filesharevolume",
+            "azureFile": {
+              "shareName": "scripts",
+              "storageAccountName": "[variables('storageAccountName')]",
+              "storageAccountKey": "[listKeys(variables('storageAccountId'),'2017-10-01').keys[0].value]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[concat(variables('containerSlaveGroup'), '-', copyIndex())]",
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2018-10-01",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.ContainerInstance/containerGroups/', variables('containerProvisionerName'))]"
+      ],
+      "copy": {
+        "name": "slavecopy",
+        "count": "[parameters('instances')]"
+      },
+      "properties": {
+        "containers": [
+          {
+            "name": "[variables('containerSlaveName')]",
+            "properties": {
+              "image": "[variables('containerSlaveImage')]",
+              "resources": {
+                "requests": {
+                  "cpu": 1.5,
+                  "memoryInGb": 0.5
+                }
+              },
+              "environmentVariables": [
+                {
+                  "name": "LOCUST_MODE",
+                  "value": "slave"
+                },
+                {
+                  "name": "LOCUSTFILE_PATH",
+                  "value": "/mnt/locust/locustfile.py"
+                },
+                {
+                  "name": "LOCUST_MASTER_HOST",
+                  "value": "[variables('containerMasterAddress')]"
+                },
+                {
+                  "name": "TARGET_URL",
+                  "value": "http://"
+                }
+              ],
+              "volumeMounts": [
+                {
+                  "name": "filesharevolume",
+                  "mountPath": "/mnt/locust"
+                }
+              ]
+            }
+          }
+        ],
+        "osType": "Linux",
+        "volumes": [
+          {
+            "name": "filesharevolume",
+            "azureFile": {
+              "shareName": "scripts",
+              "storageAccountName": "[variables('storageAccountName')]",
+              "storageAccountKey": "[listKeys(variables('storageAccountId'),'2017-10-01').keys[0].value]"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "prefix": {
+      "type": "string",
+      "value": "[variables('prefix')]"
+    },
+    "url": {
+      "type": "string",
+      "value": "[variables('containerMasterUrl')]"
+    }
+  }
+}
