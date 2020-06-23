@@ -75,7 +75,7 @@
               "command": [
                 "bash",
                 "-c",
-                "echo 'ZnJvbSBsb2N1c3QgaW1wb3J0IEh0dHBMb2N1c3QsIFRhc2tTZXQsIGJldHdlZW4KCmRlZiBpbmRleChsKToKICAgIGwuY2xpZW50LmdldCgiLyIpCgpjbGFzcyBVc2VyQmVoYXZpb3IoVGFza1NldCk6CiAgICB0YXNrcyA9IHtpbmRleDogMX0KCmNsYXNzIFdlYnNpdGVVc2VyKEh0dHBMb2N1c3QpOgogICAgdGFza19zZXQgPSBVc2VyQmVoYXZpb3IKICAgIHdhaXRfdGltZSA9IGJldHdlZW4oMC4wLCAxLjAp' | base64 -d > locustfile.py; az storage file upload -s scripts --source ./locustfile.py"
+                "echo 'ZnJvbSBsb2N1c3QgaW1wb3J0IEh0dHBVc2VyLCB0YXNrLCBiZXR3ZWVuCgpjbGFzcyBRdWlja3N0YXJ0VXNlcihIdHRwVXNlcik6CiAgICB3YWl0X3RpbWUgPSBiZXR3ZWVuKDAsIDEpCgogICAgQHRhc2sKICAgIGRlZiBpbmRleF9wYWdlKHNlbGYpOgogICAgICAgIHNlbGYuY2xpZW50LmdldCgiLyIp' | base64 -d > locustfile.py; az storage file upload -s scripts --source ./locustfile.py"
               ],
               "environmentVariables": [
                 {
@@ -114,6 +114,14 @@
             "name": "[variables('containerMasterName')]",
             "properties": {
               "image": "[variables('containerMasterImage')]",
+              "command": [
+                "locust",
+                "-f",
+                "/mnt/locust/locustfile.py",
+                "--master",
+                "--host",
+                "https://"
+              ],
               "resources": {
                 "requests": {
                   "cpu": 1,
@@ -126,20 +134,6 @@
                 },
                 {
                   "port": 5557
-                }
-              ],
-              "environmentVariables": [
-                {
-                  "name": "LOCUST_MODE",
-                  "value": "master"
-                },
-                {
-                  "name": "LOCUSTFILE_PATH",
-                  "value": "/mnt/locust/locustfile.py"
-                },
-                {
-                  "name": "TARGET_URL",
-                  "value": "http://"
                 }
               ],
               "volumeMounts": [
@@ -196,30 +190,20 @@
             "name": "[variables('containerSlaveName')]",
             "properties": {
               "image": "[variables('containerSlaveImage')]",
+              "command": [
+                "locust",
+                "-f",
+                "/mnt/locust/locustfile.py",
+                "--worker",
+                "--master-host",
+                "[variables('containerMasterAddress')]"
+              ],
               "resources": {
                 "requests": {
                   "cpu": 1.5,
                   "memoryInGb": 0.5
                 }
               },
-              "environmentVariables": [
-                {
-                  "name": "LOCUST_MODE",
-                  "value": "slave"
-                },
-                {
-                  "name": "LOCUSTFILE_PATH",
-                  "value": "/mnt/locust/locustfile.py"
-                },
-                {
-                  "name": "LOCUST_MASTER_HOST",
-                  "value": "[variables('containerMasterAddress')]"
-                },
-                {
-                  "name": "TARGET_URL",
-                  "value": "http://"
-                }
-              ],
               "volumeMounts": [
                 {
                   "name": "filesharevolume",
