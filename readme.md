@@ -16,7 +16,7 @@ Make sure you are logged in to [Azure Portal](https://portal.azure.com).
 
 Click magick button (you can open it in new tab):
 
-[![Deploy to Azure](https://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FORBA%2Fazure-locust%2Fmaster%2Fazuredeploy.json)
+[![Deploy to Azure](https://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FORBA%2Fazure-locust%2Fmaster%2mainTemplate.json)
 
 Then fill form with given values.
 
@@ -103,7 +103,7 @@ az group create --name ${RG} --location northeurope
 
 **Step 3:** Deploy ARM template
 ```
-az group deployment create --resource-group ${RG} --query properties.outputs --template-file azuredeploy.json 
+az group deployment create --resource-group ${RG} --query properties.outputs --template-file mainTemplate.json 
 ```
 - To change number of instances append `--parameters instances=<n>`
 - If you want use predefined prefix append `--parameters prefix=<customPrefix>`

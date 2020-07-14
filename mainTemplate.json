@@ -2,6 +2,13 @@
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters":{
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location where resources will be provisioned. By default, the template deploys the resources to the same location as the resource group. If specified, must be a valid Azure location e.g. 'australiasoutheast'"
+      }
+    },
     "instances": {
       "type": "int",
       "metadata": {
@@ -9,33 +16,55 @@
       },
       "defaultValue": 3
     },
+    "locustfile": {
+      "type": "string",
+      "metadata": {
+        "description": "Locustfile base64 encoded contents. You can edit locustfile later."
+      },
+      "defaultValue": ""
+    },
     "prefix": {
       "type": "string",
       "metadata": {
-        "description": "OPTIONAL: Please use only lower case and digits. Max 11 chars. If empty some random will be used."
+        "description": "Please use only lower case and digits. Max 11 chars. If empty some random will be used."
       },
       "defaultValue": ""
     }
   },
   "variables": {
-    "location": "[resourceGroup().location]",
+    "locustImage": "locustio/locust:1.1.1",
+    "location": "[parameters('location')]",
     "prefix": "[if(empty(parameters('prefix')), uniqueString(resourceGroup().id), parameters('prefix'))]",
-    "image": "microsoft/azure-cli",
+    "azureCliImage": "microsoft/azure-cli",
+    "locustfile": "[if(empty(parameters('locustfile')), 'ZnJvbSBsb2N1c3QgaW1wb3J0IEh0dHBVc2VyLCB0YXNrLCBiZXR3ZWVuCgpjbGFzcyBRdWlja3N0YXJ0VXNlcihIdHRwVXNlcik6CiAgICB3YWl0X3RpbWUgPSBiZXR3ZWVuKDAsIDEpCgogICAgQHRhc2sKICAgIGRlZiBpbmRleF9wYWdlKHNlbGYpOgogICAgICAgIHNlbGYuY2xpZW50LmdldCgiLyIp', parameters('locustfile'))]",
     "storageAccountName": "[variables('prefix')]",
     "containerProvisionerName": "[concat(variables('storageAccountName'), '-provisioner')]",
     "containerName": "createshare",
     "containerDns": "[concat(variables('prefix'),'-master')]",
     "containerMasterGroup": "[concat(variables('prefix'),'-master')]",
     "containerMasterName": "master",
-    "containerMasterImage": "locustio/locust",
+    "containerMasterImage": "[variables('locustImage')]",
     "containerSlaveGroup": "[concat(variables('prefix'),'-slave')]",
     "containerSlaveName": "slave",
-    "containerSlaveImage": "locustio/locust",
-    "containerMasterAddress": "[concat(variables('containerDns'), '.', resourceGroup().location, '.azurecontainer.io')]",
+    "containerSlaveImage": "[variables('locustImage')]",
+    "containerMasterAddress": "[concat(variables('containerDns'), '.', variables('location'), '.azurecontainer.io')]",
     "containerMasterUrl": "[concat('http://', variables('containerMasterAddress'), ':8089')]",
     "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
   },
   "resources": [
+    {
+      "apiVersion": "2018-02-01",
+      "name": "pid-7218bf71-924c-4b21-bef6-bb9549f8f2c1",
+      "type": "Microsoft.Resources/deployments",
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": []
+        }
+      }
+    },
     {
       "type": "Microsoft.Storage/storageAccounts",
       "name": "[variables('storageAccountName')]",
@@ -71,11 +100,11 @@
           {
             "name": "[variables('containerName')]",
             "properties": {
-              "image": "[variables('image')]",
+              "image": "[variables('azureCliImage')]",
               "command": [
                 "bash",
                 "-c",
-                "echo 'ZnJvbSBsb2N1c3QgaW1wb3J0IEh0dHBVc2VyLCB0YXNrLCBiZXR3ZWVuCgpjbGFzcyBRdWlja3N0YXJ0VXNlcihIdHRwVXNlcik6CiAgICB3YWl0X3RpbWUgPSBiZXR3ZWVuKDAsIDEpCgogICAgQHRhc2sKICAgIGRlZiBpbmRleF9wYWdlKHNlbGYpOgogICAgICAgIHNlbGYuY2xpZW50LmdldCgiLyIp' | base64 -d > locustfile.py; az storage file upload -s scripts --source ./locustfile.py"
+                "[concat('echo ', variables('locustfile'), ' | ', 'base64 -d > locustfile.py', ';', 'az storage file upload -s scripts --source ./locustfile.py')]"
               ],
               "environmentVariables": [
                 {
@@ -104,9 +133,9 @@
       "name": "[variables('containerMasterGroup')]",
       "type": "Microsoft.ContainerInstance/containerGroups",
       "apiVersion": "2018-10-01",
-      "location": "[resourceGroup().location]",
+      "location": "[variables('location')]",
       "dependsOn": [
-        "[concat('Microsoft.ContainerInstance/containerGroups/', variables('containerProvisionerName'))]"
+        "[resourceId('Microsoft.ContainerInstance/containerGroups/', variables('containerProvisionerName'))]"
       ],
       "properties": {
         "containers": [
@@ -176,9 +205,9 @@
       "name": "[concat(variables('containerSlaveGroup'), '-', copyIndex())]",
       "type": "Microsoft.ContainerInstance/containerGroups",
       "apiVersion": "2018-10-01",
-      "location": "[resourceGroup().location]",
+      "location": "[variables('location')]",
       "dependsOn": [
-        "[concat('Microsoft.ContainerInstance/containerGroups/', variables('containerProvisionerName'))]"
+        "[resourceId('Microsoft.ContainerInstance/containerGroups/', variables('containerProvisionerName'))]"
       ],
       "copy": {
         "name": "slavecopy",
