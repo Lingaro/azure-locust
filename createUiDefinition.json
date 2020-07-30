@@ -46,22 +46,10 @@
         "visible": true
       },
       {
-        "name": "prefix",
-        "type": "Microsoft.Common.TextBox",
-        "label": "Prefix (optional)",
-        "defaultValue": "",
-        "toolTip": "Prefix name for your resources. Please use only lower case and digits. Max 11 chars. If empty some random will be generated.",
-        "constraints": {
-          "regex": "^[0-9a-z]{5,11}$",
-          "validationMessage": "Use only alphanum chars (a-z,0-1)"
-        },
-        "visible": true
-      },
-      {
         "name": "locustfile",
         "type": "Microsoft.Common.FileUpload",
         "label": "Locustfile (optional)",
-        "toolTip": "Upload locustfile.py. If empty, default will be used. You can chaneg it later.",
+        "toolTip": "Upload locustfile.py. If empty, default will be used. You can change it later.",
         "constraints": {
           "required": false,
           "accept": ".py,text/plain"
@@ -79,8 +67,7 @@
     "outputs": {
       "location": "[steps('basics').location]",
       "instances": "[steps('basics').instances]",
-      "locustfile": "[steps('basics').locustfile]",
-      "prefix": "[steps('basics').prefix]"
+      "locustfile": "[steps('basics').locustfile]"
     }
   }
 }

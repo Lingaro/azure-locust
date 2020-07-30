@@ -1,6 +1,6 @@
 # Azure Locust
 
-Run distributed [Locust](https://locust.io/) load tests on _Azure Container Instances_. It's quick, cheap and scalable! Using 20 slaves you can achive ~12 000 req/s!
+Run distributed [Locust](https://locust.io/) load tests on _Azure Container Instances_. It's quick, cheap and scalable! Using 20 slaves you can achieve ~12 000 req/s!
 
 ![Locust Diagram](docs/locust-diagram.png)
 
