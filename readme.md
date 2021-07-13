@@ -24,7 +24,6 @@ Then fill form with given values.
 - **Resource Group:** select existing Resource Group or create new one
 - **Location:** North Europe (any allowed, but keep in mind its part of Locust DNS address!)
 - **Instances (optional):**  number of slaves (one slave ~600rps)
-- **Prefix (optional):** predefined name, if empty random `xxxxxxxxxxxxx` will be generated
 
 ![Custom Deployment](docs/custom-deployment.png)
 
@@ -106,7 +105,6 @@ az group create --name ${RG} --location northeurope
 az group deployment create --resource-group ${RG} --query properties.outputs --template-file mainTemplate.json 
 ```
 - To change number of instances append `--parameters instances=<n>`
-- If you want use predefined prefix append `--parameters prefix=<customPrefix>`
 
 **Step 4:** Note values of `prefix` and `url` from console output.
 

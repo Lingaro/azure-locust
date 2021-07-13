@@ -22,20 +22,13 @@
         "description": "Locustfile base64 encoded contents. You can edit locustfile later."
       },
       "defaultValue": ""
-    },
-    "prefix": {
-      "type": "string",
-      "metadata": {
-        "description": "Please use only lower case and digits. Max 11 chars. If empty some random will be used."
-      },
-      "defaultValue": ""
     }
   },
   "variables": {
     "locustImage": "locustio/locust:1.1.1",
     "location": "[parameters('location')]",
-    "prefix": "[if(empty(parameters('prefix')), uniqueString(resourceGroup().id), parameters('prefix'))]",
-    "azureCliImage": "microsoft/azure-cli",
+    "prefix": "[uniqueString(resourceGroup().id)]",
+    "azureCliImage": "mcr.microsoft.com/azure-cli",
     "locustfile": "[if(empty(parameters('locustfile')), 'ZnJvbSBsb2N1c3QgaW1wb3J0IEh0dHBVc2VyLCB0YXNrLCBiZXR3ZWVuCgpjbGFzcyBRdWlja3N0YXJ0VXNlcihIdHRwVXNlcik6CiAgICB3YWl0X3RpbWUgPSBiZXR3ZWVuKDAsIDEpCgogICAgZGVmIG9uX3N0YXJ0KHNlbGYpOgogICAgICAgIHNlbGYuY2xpZW50LmhlYWRlcnNbJ1VzZXItQWdlbnQnXSA9ICJNb3ppbGxhLzUuMCIKCiAgICBAdGFzawogICAgZGVmIGluZGV4X3BhZ2Uoc2VsZik6CiAgICAgICAgc2VsZi5jbGllbnQuZ2V0KCIvIik=', parameters('locustfile'))]",
     "storageAccountName": "[variables('prefix')]",
     "containerProvisionerName": "[concat(variables('storageAccountName'), '-provisioner')]",
@@ -53,7 +46,7 @@
   },
   "resources": [
     {
-      "apiVersion": "2018-02-01",
+      "apiVersion": "2020-06-01",
       "name": "pid-7218bf71-924c-4b21-bef6-bb9549f8f2c1",
       "type": "Microsoft.Resources/deployments",
       "properties": {
@@ -68,7 +61,7 @@
     {
       "type": "Microsoft.Storage/storageAccounts",
       "name": "[variables('storageAccountName')]",
-      "apiVersion": "2017-10-01",
+      "apiVersion": "2019-06-01",
       "location": "[variables('location')]",
       "sku": {
         "name": "Standard_LRS"
@@ -78,7 +71,7 @@
     },
     {
       "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
-      "apiVersion": "2019-04-01",
+      "apiVersion": "2019-06-01",
       "name": "[concat(variables('storageAccountName'), '/default/scripts')]",
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
@@ -90,7 +83,7 @@
     {
       "name": "[variables('containerProvisionerName')]",
       "type": "Microsoft.ContainerInstance/containerGroups",
-      "apiVersion": "2018-02-01-preview",
+      "apiVersion": "2019-12-01",
       "location": "[variables('location')]",
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts/fileServices/shares', variables('storageAccountName'), 'default', 'scripts')]"
@@ -132,7 +125,7 @@
     {
       "name": "[variables('containerMasterGroup')]",
       "type": "Microsoft.ContainerInstance/containerGroups",
-      "apiVersion": "2018-10-01",
+      "apiVersion": "2019-12-01",
       "location": "[variables('location')]",
       "dependsOn": [
         "[resourceId('Microsoft.ContainerInstance/containerGroups/', variables('containerProvisionerName'))]"
@@ -204,7 +197,7 @@
     {
       "name": "[concat(variables('containerSlaveGroup'), '-', copyIndex())]",
       "type": "Microsoft.ContainerInstance/containerGroups",
-      "apiVersion": "2018-10-01",
+      "apiVersion": "2019-12-01",
       "location": "[variables('location')]",
       "dependsOn": [
         "[resourceId('Microsoft.ContainerInstance/containerGroups/', variables('containerProvisionerName'))]"

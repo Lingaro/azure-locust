@@ -65,7 +65,7 @@
     ],
     "steps": [],
     "outputs": {
-      "location": "[steps('basics').location]",
+      "location": "[location()]",
       "instances": "[steps('basics').instances]",
       "locustfile": "[steps('basics').locustfile]"
     }
